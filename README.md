@@ -27,6 +27,7 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
 제출용 빌드는 `./gradlew assembleRelease`로 만듭니다(기본 디버그 키로 서명).
+빌드된 파일은 [release/carsound-v0.1.apk](release/carsound-v0.1.apk)에 있습니다.
 
 ## 폴더 구조
 
@@ -58,6 +59,7 @@ tools/
 ├─ demo/car.sh                  에뮬레이터 차량 시뮬레이터에 값 보내기(시연용)
 └─ video/                       시연 영상 촬영·편집 스크립트
 docs/                           README에 쓰는 화면 캡처
+release/                        빌드된 APK
 SOUND_SOURCES.md                소리 출처와 라이선스
 ```
 
