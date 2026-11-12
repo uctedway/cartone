@@ -6,16 +6,20 @@
   촬영 스크립트가 적어 둔 시각은 에뮬레이터 지연 때문에 최대 2초 어긋나서 쓰지 않는다.
 - 조각을 따로 만들어 붙이면 조각마다 소리 길이가 조금씩 달라 뒤로 갈수록 화면과 어긋난다.
   그래서 한 번의 ffmpeg 실행 안에서 화면과 소리를 같은 길이로 잘라 함께 이어 붙인다.
-- 화면 아래 180px 자막 띠, 소리는 에뮬레이터에서 녹음된 그대로이고 음량만 키운다.
-사용: python3 build.py
+- 화면 아래 180px 자막 띠.
+- 소리는 clean_audio.py가 만든 clean_<파트>.wav를 쓴다. 앱이 재생한 원본 파일을 녹화 속 소리 시점에 그대로 놓은 것이다.
+  (녹화에 들어간 소리는 아주 작게 녹음돼서, 키우면 잡음이 같이 커져 지글거린다)
+사용: python3 clean_audio.py <작업 폴더> && python3 build.py <작업 폴더>
 """
 import os
 import subprocess
 import sys
 
-D = os.path.dirname(os.path.abspath(__file__))
+HERE = os.path.dirname(os.path.abspath(__file__))
+# 녹화 파일과 cuts.txt가 있는 작업 폴더(안 주면 이 스크립트가 있는 폴더)
+D = os.path.abspath(sys.argv[1]) if len(sys.argv) > 1 else HERE
 FPS = 30
-FOOT = "Pleos Connect 에뮬레이터 화면과 소리를 그대로 녹화 · 차량 값은 에뮬레이터 차량 시뮬레이터로 입력 · 목소리 예시는 AI 합성 음성"
+FOOT = "Pleos Connect 에뮬레이터 화면 녹화 · 소리는 앱이 재생한 원본 파일을 같은 시점에 넣음 · 차량 값은 차량 시뮬레이터로 입력 · 목소리 예시는 AI 합성 음성"
 
 CAP = {
     "intro": ("차소리 · 운전 동작마다 우리 가족의 소리", "깜빡이·창문·기어 같은 차량 신호(Pleos Vehicle SDK)에 소리를 입히는 앱"),
@@ -58,7 +62,7 @@ def caption(tmp, cap):
     png = os.path.join(tmp, f"cap_{cap}.png")
     if not os.path.exists(png):
         t, sub = CAP[cap]
-        run(["swift", os.path.join(D, "mkcap.swift"), png, t, sub, FOOT])
+        run(["swift", os.path.join(HERE, "mkcap.swift"), png, t, sub, FOOT])
     return png
 
 
@@ -68,11 +72,12 @@ def main():
     inputs, graph, pads = [], [], ""
     for k, (part, cap, s, dur) in enumerate(segs):
         # 구간 앞뒤로 여유를 두고 읽은 뒤, 필터에서 화면과 소리를 정확히 같은 길이로 자른다
-        inputs += ["-ss", f"{s:.3f}", "-t", f"{dur + 1:.3f}", "-i", os.path.join(D, f"raw_{part}.webm"), "-i", caption(tmp, cap)]
-        v, c = 2 * k, 2 * k + 1
+        inputs += ["-ss", f"{s:.3f}", "-t", f"{dur + 1:.3f}", "-i", os.path.join(D, f"raw_{part}.webm"), "-i", caption(tmp, cap),
+                   "-ss", f"{s:.3f}", "-t", f"{dur + 1:.3f}", "-i", os.path.join(D, f"clean_{part}.wav")]
+        v, c, a = 3 * k, 3 * k + 1, 3 * k + 2
         graph.append(f"[{v}:v]fps={FPS},scale=-2:900,pad=1920:1080:(ow-iw)/2:0:black[v{k}];[{c}:v]scale=1920:180[c{k}];"
                      f"[v{k}][c{k}]overlay=0:900,trim=duration={dur:.4f},setpts=PTS-STARTPTS,format=yuv420p[o{k}]")
-        graph.append(f"[{v}:a]aresample=48000:async=1:first_pts=0,aformat=channel_layouts=stereo,apad,"
+        graph.append(f"[{a}:a]aresample=48000,aformat=channel_layouts=stereo,apad,"
                      f"atrim=duration={dur:.4f},asetpts=PTS-STARTPTS[a{k}]")
         pads += f"[o{k}][a{k}]"
         print(f"{k:02d} {part} {cap:12s} {s:7.2f}s +{dur:.2f}s")
@@ -80,7 +85,7 @@ def main():
     joined = os.path.join(tmp, "joined.mkv")
     run(["ffmpeg", "-y", "-loglevel", "error"] + inputs + ["-filter_complex", ";".join(graph), "-map", "[v]", "-map", "[a]",
          "-r", str(FPS), "-c:v", "libx264", "-preset", "medium", "-crf", "20", "-c:a", "pcm_s16le", joined])
-    # 에뮬레이터 차 볼륨이 낮게 녹음되므로 전체 음량만 올린다(봉우리 -2dB 기준)
+    # 전체 음량을 봉우리 -2dB에 맞춘다(원본 파일을 쓰므로 크게 키울 일은 없다)
     r = subprocess.run(["ffmpeg", "-i", joined, "-af", "volumedetect", "-vn", "-f", "null", "-"], capture_output=True, text=True)
     peak = float([l for l in r.stderr.splitlines() if "max_volume" in l][0].split(":")[1].split()[0])
     gain = -2.0 - peak
