@@ -21,7 +21,8 @@ import kr.carsound.app.ui.Ui
 /**
  * 내비 위에 잠깐 뜨는 알림 띠(아이콘 + 짧은 글자).
  * - 위치: 화면 오른쪽 위. 깜빡이 때 Pleos가 왼쪽 위에 측면 카메라를 띄우므로 그 자리를 피한다.
- * - 1.8초 뒤 사라지고, 터치를 받지 않아 운전 조작을 막지 않는다.
+ * - 이벤트마다 정해진 시간만큼 떠 있다. 깜빡이처럼 이어지는 상태는 꺼질 때까지 떠 있는다.
+ * - 터치를 받지 않아 운전 조작을 막지 않는다.
  * - "다른 앱 위에 표시" 권한이 없으면 띄우지 않고 소리만 낸다.
  */
 class EventOverlay(private val context: Context) {
@@ -30,26 +31,57 @@ class EventOverlay(private val context: Context) {
     private var card: LinearLayout? = null
     private var glyph: GlyphView? = null
     private var label: TextView? = null
-    private val hide = Runnable { card?.animate()?.alpha(0f)?.translationX(60f)?.setDuration(220)?.withEndAction { detach() } }
+
+    /** 꺼질 때까지 띄워 두는 이벤트(깜빡이). 다른 알림이 잠깐 덮었다가 사라지면 이 표시로 돌아온다 */
+    private var held: Shown? = null
+    private val hide = Runnable { held?.let { render(it, slide = false) } ?: fadeOut() }
+
+    /** 알림 띠 한 번에 그릴 내용 */
+    private class Shown(val e: CarEvent, val theme: Theme, val voice: Boolean)
 
     /** "다른 앱 위에 표시" 권한이 있는지 */
     fun canShow() = Settings.canDrawOverlays(context)
 
-    /** 알림 띠를 띄운다. voice = 녹음한 목소리가 난 경우(마이크 표시를 붙임) */
-    fun show(e: CarEvent, theme: Theme, voice: Boolean) {
+    /** 알림 띠를 띄운다. voice = 녹음한 목소리가 난 경우(마이크 표시를 붙임). holdMs = null이면 release()까지 떠 있는다 */
+    fun show(e: CarEvent, theme: Theme, voice: Boolean, holdMs: Long?) {
         if (!canShow()) return
+        val s = Shown(e, theme, voice)
+        if (holdMs == null) held = s
+        render(s, slide = true)
+        if (holdMs != null) main.postDelayed(hide, holdMs)
+    }
+
+    /** 이어지는 이벤트의 소리가 다시 날 때 아이콘만 한 번 더 움직인다 */
+    fun pulse(e: CarEvent) {
+        val h = held ?: return
+        if (h.e == e && label?.tag == e) glyph?.play(h.theme.motion)
+    }
+
+    /** 이어지던 이벤트가 끝났다. 그 표시가 떠 있으면 내린다 */
+    fun release(e: CarEvent) {
+        if (held?.e != e) return
+        held = null
+        if (label?.tag == e) { main.removeCallbacks(hide); fadeOut() }
+    }
+
+    /** 내용을 그리고 보여준다. slide = 옆에서 미끄러져 들어오기 */
+    private fun render(s: Shown, slide: Boolean) {
         runCatching {
             val v = card ?: build().also { attach(it) }
             val bg = v.background as GradientDrawable
-            bg.setColor(theme.colors.card); bg.setStroke(dp(1), Ui.alpha(theme.colors.accent, 0.45f))
-            glyph?.apply { glyph = e.glyph; color = theme.colors.accent; play(theme.motion) }
-            label?.apply { text = if (voice) "🎙 ${e.label}" else e.label; setTextColor(theme.colors.ink) }
+            bg.setColor(s.theme.colors.card); bg.setStroke(dp(1), Ui.alpha(s.theme.colors.accent, 0.45f))
+            glyph?.apply { glyph = s.e.glyph; color = s.theme.colors.accent; play(s.theme.motion) }
+            label?.apply { text = if (s.voice) "🎙 ${s.e.label}" else s.e.label; setTextColor(s.theme.colors.ink); tag = s.e }
             v.animate().cancel()
-            v.alpha = 0f; v.translationX = 60f
-            v.animate().alpha(1f).translationX(0f).setDuration(180).start()
+            if (slide) { v.alpha = 0f; v.translationX = 60f }
+            v.animate().alpha(1f).translationX(0f).setDuration(180).withEndAction(null).start()
             main.removeCallbacks(hide)
-            main.postDelayed(hide, SHOW_MS)
         }.onFailure { Log.w("CarSound", "알림 띠 실패 $it") }
+    }
+
+    /** 옆으로 밀려나며 사라진다 */
+    private fun fadeOut() {
+        card?.animate()?.alpha(0f)?.translationX(60f)?.setDuration(220)?.withEndAction { detach() }
     }
 
     /** 알림 띠 뷰(아이콘 + 글자)를 만든다 */
@@ -86,6 +118,4 @@ class EventOverlay(private val context: Context) {
     }
 
     private fun dp(v: Int) = (v * context.resources.displayMetrics.density).toInt()
-
-    companion object { private const val SHOW_MS = 1800L }
 }

@@ -45,9 +45,13 @@ class MainActivity : Activity() {
     private val onEvent: (CarEvent) -> Unit = { e ->
         ui.root.post {
             val audible = app.prefs.enabled && app.prefs.isOn(e.key) && app.sound.hasSound(e) && !app.recorder.isRecording
-            if (audible) showPlaying(e)
+            // 깜빡이는 꺼질 때까지, 나머지는 이벤트별 시간만큼 보여준다
+            if (audible) showPlaying(e, if (e.sustained) null else app.holdFor(e))
         }
     }
+
+    /** 이어지던 이벤트(깜빡이)가 끝나면 재생 표시를 내린다 */
+    private val onEventEnd: (CarEvent) -> Unit = { e -> if (playingEvent == e) finishPlaying() }
 
     /** 테마가 바뀌면(자동 전환 포함) 화면 전체를 다시 칠한다 */
     private val onTheme: () -> Unit = { refreshAll() }
@@ -82,6 +86,7 @@ class MainActivity : Activity() {
         super.onResume()
         app.gate.listeners += onGate
         app.eventListeners += onEvent
+        app.eventEndListeners += onEventEnd
         app.recordListeners += onRecorded
         app.themeListeners += onTheme
         app.recorder.onProgress = { p, _ -> if (app.recorder.isRecording) ui.recLayer.progress(p) }
@@ -94,6 +99,7 @@ class MainActivity : Activity() {
         finishPlaying()
         app.gate.listeners -= onGate
         app.eventListeners -= onEvent
+        app.eventEndListeners -= onEventEnd
         app.recordListeners -= onRecorded
         app.themeListeners -= onTheme
         super.onPause()
@@ -153,18 +159,21 @@ class MainActivity : Activity() {
     private fun listen(e: CarEvent) {
         if (playingEvent == e) { app.sound.stop(); finishPlaying(); return }
         if (!app.sound.play(e, force = true)) { toast("이 테마에는 소리가 없어요. 녹음해 보세요"); return }
-        showPlaying(e)
+        showPlaying(e, app.sound.lastDurationMs.coerceIn(MIN_PLAYING_MS, MAX_PLAYING_MS))
     }
 
-    /** 소리가 나는 동안: 그 칸의 듣기 버튼을 정지 모양으로, 화면 가운데에 아이콘을 크게(빠르게 페이드 인) */
-    private fun showPlaying(e: CarEvent) {
+    /**
+     * 소리가 나는 동안: 그 칸의 듣기 버튼을 정지 모양으로, 화면 가운데에 아이콘을 크게(빠르게 페이드 인).
+     * holdMs 뒤에 내린다. null이면 끝났다는 알림이 올 때까지 둔다
+     */
+    private fun showPlaying(e: CarEvent, holdMs: Long?) {
         ui.root.removeCallbacks(endPlaying)
         playingEvent?.let { tileOf(it)?.showPlaying(false) }
         playingEvent = e
         val t = app.theme
         tileOf(e)?.apply { showPlaying(true); ping(t) }
         ui.stage.show(e.glyph, t.colors)
-        ui.root.postDelayed(endPlaying, app.sound.lastDurationMs.coerceIn(MIN_PLAYING_MS, MAX_PLAYING_MS))
+        if (holdMs != null) ui.root.postDelayed(endPlaying, holdMs)
     }
 
     /** 소리가 끝나면 버튼을 되돌리고 아이콘을 빠르게 페이드 아웃 */
@@ -226,9 +235,9 @@ class MainActivity : Activity() {
         /** 테마 카드 한 장의 폭(dp) */
         private const val CARD_DP = 380
 
-        /** 재생 표시를 유지하는 시간 범위(ms). 소리 길이를 이 안으로 맞춘다 */
-        private const val MIN_PLAYING_MS = 500L
-        private const val MAX_PLAYING_MS = 3200L
+        /** [듣기]를 눌렀을 때 재생 표시를 유지하는 시간 범위(ms). 소리가 짧아도 아이콘을 알아볼 만큼은 보여준다 */
+        private const val MIN_PLAYING_MS = 1600L
+        private const val MAX_PLAYING_MS = 3600L
 
         /** 켬·끔 표시를 보여주는 시간(ms) */
         private const val BADGE_MS = 900L

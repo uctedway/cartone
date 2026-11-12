@@ -10,6 +10,7 @@ import kr.carsound.app.record.VoiceRecorder
 import kr.carsound.app.record.VoiceStore
 import kr.carsound.app.settings.Prefs
 import kr.carsound.app.sound.SoundEngine
+import kr.carsound.app.sound.SustainLoop
 import kr.carsound.app.theme.CustomThemes
 import kr.carsound.app.theme.Theme
 import kr.carsound.app.theme.ThemeRepository
@@ -30,6 +31,9 @@ class CarSoundApp : Application() {
     lateinit var gate: ParkGate; private set
     private var watcher: VehicleWatcher? = null
 
+    /** 깜빡이처럼 켜져 있는 동안 소리를 되풀이하는 부품 */
+    private val sustain = SustainLoop(::repeatSound, ::onSustainStopped)
+
     /** 이번 녹음을 시작하면서 새로 만든 복사본 테마 id. 녹음을 버리면 빈 복사본도 함께 지운다 */
     private var freshCopy: String? = null
 
@@ -41,6 +45,9 @@ class CarSoundApp : Application() {
 
     /** 화면이 최근 이벤트를 보여줄 수 있게 알려준다 */
     val eventListeners = mutableListOf<(CarEvent) -> Unit>()
+
+    /** 이어지던 이벤트(깜빡이)가 끝났을 때 화면에 알려준다 */
+    val eventEndListeners = mutableListOf<(CarEvent) -> Unit>()
 
     /** 테마가 바뀌었을 때(자동 전환 포함) 화면에 알려준다 */
     val themeListeners = mutableListOf<() -> Unit>()
@@ -80,12 +87,13 @@ class CarSoundApp : Application() {
         watcher = VehicleWatcher(this).apply {
             onGear = { g: Gear -> gate.onGear(g) }
             onEvent = { e -> handle(e) }
+            onEventEnd = { e -> sustain.end(e) }
             start()
         }
     }
 
     /** 서비스가 내려갈 때 차량 이벤트 감시를 끈다 */
-    fun stopWatching() { watcher?.stop(); watcher = null }
+    fun stopWatching() { watcher?.stop(); watcher = null; sustain.cancel() }
 
     /** 테마를 바꾸고 그 테마의 소리를 불러온다. force = 구성이 같아 보여도 소리를 새로 읽기 */
     fun selectTheme(id: String, force: Boolean = false) {
@@ -124,9 +132,14 @@ class CarSoundApp : Application() {
         if (prefs.themeId == id) selectTheme(base) else themeListeners.forEach { it() }
     }
 
+    /** 아이콘·알림 띠를 보여줄 시간: 이벤트별 최소 시간과 소리 길이 중 긴 쪽 */
+    fun holdFor(e: CarEvent): Long = maxOf(e.holdMs, sound.lastDurationMs + HOLD_TAIL_MS)
+
     /** 차량 이벤트 처리: 테마 자동 전환 → 소리 → 알림 띠 */
     private fun handle(e: CarEvent) {
         Log.i("CarSound", "이벤트 ${e.key}")
+        // 깜빡이 값이 잠깐 끊겼다 다시 온 것이면 하던 반복을 그대로 잇는다
+        if (e.sustained && sustain.resume(e)) return
         eventListeners.forEach { it(e) }
         if (!prefs.enabled) return
         val off = !prefs.isOn(e.key)
@@ -136,6 +149,32 @@ class CarSoundApp : Application() {
         if (recorder.isRecording) return // 녹음 중에는 소리를 내지 않는다
         val played = sound.play(e)
         Log.d("CarSound", "재생 ${e.key} → $played")
-        if (played) overlay.show(e, theme, theme.isVoice(e))
+        if (!played) return
+        if (e.sustained) {
+            // 깜빡이: 꺼질 때까지 알림 띠를 띄워 두고 소리를 되풀이한다
+            overlay.show(e, theme, theme.isVoice(e), holdMs = null)
+            sustain.start(e, sound.lastDurationMs)
+        } else {
+            overlay.show(e, theme, theme.isVoice(e), holdFor(e))
+        }
+    }
+
+    /** 이어지는 이벤트의 소리를 한 번 더 낸다. 낸 소리의 길이(ms), 더 내면 안 되는 상황이면 null */
+    private fun repeatSound(e: CarEvent): Long? {
+        if (!prefs.enabled || !prefs.isOn(e.key) || recorder.isRecording) return null
+        if (!sound.play(e)) return null
+        overlay.pulse(e)
+        return sound.lastDurationMs
+    }
+
+    /** 이어지던 이벤트가 끝나면 알림 띠를 내리고 화면에 알린다 */
+    private fun onSustainStopped(e: CarEvent) {
+        overlay.release(e)
+        eventEndListeners.forEach { it(e) }
+    }
+
+    companion object {
+        /** 소리가 끝난 뒤 표시를 조금 더 남겨 두는 시간(ms) */
+        private const val HOLD_TAIL_MS = 400L
     }
 }

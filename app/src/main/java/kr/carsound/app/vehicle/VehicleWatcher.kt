@@ -42,6 +42,12 @@ class VehicleWatcher(context: Context) {
     /** 차량 이벤트가 생겼을 때 */
     var onEvent: ((CarEvent) -> Unit)? = null
 
+    /** 켜져 있는 동안 이어지는 이벤트(깜빡이)가 끝났을 때 */
+    var onEventEnd: ((CarEvent) -> Unit)? = null
+
+    /** 지금 켜져 있는 깜빡이 이벤트(없으면 null). 메인 스레드에서만 만진다 */
+    private var turning: CarEvent? = null
+
     /** 기어가 바뀌었을 때(첫 값 포함). 녹음 잠금이 이 값을 따른다 */
     var onGear: ((Gear) -> Unit)? = null
 
@@ -84,10 +90,16 @@ class VehicleWatcher(context: Context) {
             vehicle.getTurnSignal().registerTurnSignalState(object : TurnSignalStateListener {
                 override fun onTurnSignalStateUpdated(v: TurnSignalValue?) {
                     if (!edges.changed("turn", v?.name)) return
-                    when (v) {
-                        TurnSignalValue.LEFT -> emit(CarEvent.TURN_LEFT)
-                        TurnSignalValue.RIGHT -> emit(CarEvent.TURN_RIGHT)
-                        else -> Unit
+                    val now = when (v) {
+                        TurnSignalValue.LEFT -> CarEvent.TURN_LEFT
+                        TurnSignalValue.RIGHT -> CarEvent.TURN_RIGHT
+                        else -> null
+                    }
+                    // 꺼지거나 반대쪽으로 바뀌면 이전 깜빡이를 먼저 끝내고, 새로 켜진 쪽을 알린다
+                    main.post {
+                        turning?.takeIf { it != now }?.let { onEventEnd?.invoke(it) }
+                        turning = now
+                        now?.let { onEvent?.invoke(it) }
                     }
                 }
                 override fun onFailed(e: Exception) = Log.w(TAG, "깜빡이 오류 $e").let {}

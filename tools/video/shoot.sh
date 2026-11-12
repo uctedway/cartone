@@ -79,14 +79,15 @@ elif [ $P = B ]; then
   tap 1093 1357; sleep 3
   post "/vehicle/controls?speed_kph=60"; sleep 3
   note drive 2500
+  # 깜빡이는 켜 둔 동안 소리가 되풀이되고 알림 띠가 유지된다. 5초쯤 켜 두었다가 끄고, 띠가 내려갈 때까지 기다린다
   act turn_left turn_left 'post "/vehicle/turn-signal?mode=BlinkLeft"'
-  post "/vehicle/turn-signal?mode=Off"; sleep 1.5
+  sleep 2.4; post "/vehicle/turn-signal?mode=Off"; sleep 3
   act window_down window_down 'post "/vehicle/body?window_fl=80"'
   # 와이퍼는 P단에서 꺼 두었으므로 신호가 와도 조용해야 한다(소리 확인 대신 4초 보여 준다)
   t=$(( $(ms) - T0 )); post "/vehicle/body?front_wiper=Low"; sleep 4
   echo "wiper_off $t $t $(( $(ms) - T0 ))" >> $SEG
   act turn_right turn_right 'post "/vehicle/turn-signal?mode=BlinkRight"'
-  post "/vehicle/turn-signal?mode=Off"; post "/vehicle/body?front_wiper=Off"; sleep 1.5
+  sleep 2.4; post "/vehicle/turn-signal?mode=Off"; post "/vehicle/body?front_wiper=Off"; sleep 3
   act window_up window_up 'post "/vehicle/body?window_fl=0"'
   sleep 1
 else
