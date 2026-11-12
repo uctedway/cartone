@@ -8,5 +8,5 @@ dependencyResolutionManagement {
         maven("https://nexus-playground.pleos.ai/repository/maven-releases/")
     }
 }
-rootProject.name = "carsound"
+rootProject.name = "cartone"
 include(":app")

@@ -4,10 +4,10 @@ plugins {
 }
 
 android {
-    namespace = "kr.carsound.app"
+    namespace = "kr.cartone.app"
     compileSdk = 34
     defaultConfig {
-        applicationId = "kr.carsound.app"
+        applicationId = "kr.cartone.app"
         minSdk = 28
         targetSdk = 34
         versionCode = 1

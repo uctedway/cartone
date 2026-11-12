@@ -6,7 +6,7 @@
 - 주행 중 주의 분산을 줄이려고 모든 소리는 1.5초 이내로 만든다(build 끝에서 검사).
 - 결과: app/src/main/assets/themes/<테마>/<이벤트>_<번호>.wav (모노 44.1kHz 16bit)
 
-실행: CARSOUND_RATTLE_SRC=<딸랑이 원본 폴더> CARSOUND_DRUM_SRC=<드럼 샘플 폴더> python3 tools/build_themes.py   (ffmpeg 필요)
+실행: CARTONE_RATTLE_SRC=<딸랑이 원본 폴더> CARTONE_DRUM_SRC=<드럼 샘플 폴더> python3 tools/build_themes.py   (ffmpeg 필요)
 원본 녹음은 저장소에 넣지 않았다. 만들어진 결과(assets/themes)만 들어 있다.
 """
 import os
@@ -17,8 +17,8 @@ import sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT = os.path.join(ROOT, "app", "src", "main", "assets", "themes")
 # 원본 녹음 폴더는 환경 변수로 받는다(없으면 저장소 옆 sources 폴더를 본다)
-RATTLE = os.environ.get("CARSOUND_RATTLE_SRC", os.path.join(ROOT, "sources", "rattle"))
-DRUM = os.environ.get("CARSOUND_DRUM_SRC", os.path.join(ROOT, "sources", "drum"))
+RATTLE = os.environ.get("CARTONE_RATTLE_SRC", os.path.join(ROOT, "sources", "rattle"))
+DRUM = os.environ.get("CARTONE_DRUM_SRC", os.path.join(ROOT, "sources", "drum"))
 
 
 # 깜빡이 소리의 두 번째 종 위치와 그 뒤 여운(ms). 합쳐서 1초(점멸 간격)를 넘지 않게 한다

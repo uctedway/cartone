@@ -28,7 +28,7 @@ def plays():
     """재생 기록을 (시각 초, 파일 경로, 왼쪽, 오른쪽, 늦게 났는지) 목록으로 읽는다. 테마 전환 기록으로 어느 테마 파일인지 가린다"""
     out, theme = [], "rattle"
     for line in open(os.path.join(D, "play_C.log"), encoding="utf8", errors="ignore"):
-        m = re.match(r"\d\d-\d\d (\d\d:\d\d:\d\d\.\d+).*CarSound: (.*)", line)
+        m = re.match(r"\d\d-\d\d (\d\d:\d\d:\d\d\.\d+).*CarTone\s*: (.*)", line)
         if not m:
             continue
         t = datetime.strptime(m.group(1), "%H:%M:%S.%f")

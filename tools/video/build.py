@@ -1,5 +1,5 @@
 """
-차소리 시연 영상 편집(ffmpeg).
+카톤 시연 영상 편집(ffmpeg).
 - raw_<파트>.webm(에뮬레이터 화면+소리 녹화)에서 cuts.txt에 적힌 구간만 잘라 이어 붙인다.
 - cuts.txt 한 줄: <파트> <자막 이름> <시작 초> <끝 초>. 시각은 녹화 파일 안의 시각이다.
   소리 장면은 녹화에 실제로 들어간 소리 시작 시점(silencedetect로 찾음)의 1.3초쯤 앞에서 시작한다.
@@ -22,7 +22,7 @@ FPS = 30
 FOOT = "Pleos Connect 에뮬레이터 화면 녹화 · 소리는 앱이 재생한 원본 파일을 같은 시점에 넣음 · 차량 값은 차량 시뮬레이터로 입력 · 목소리 예시는 AI 합성 음성"
 
 CAP = {
-    "intro": ("차소리 · 운전 동작마다 우리 가족의 소리", "깜빡이·창문·기어 같은 차량 신호(Pleos Vehicle SDK)에 소리를 입히는 앱"),
+    "intro": ("카톤(CarTone) · 운전 동작마다 우리 가족의 소리", "깜빡이·창문·기어 같은 차량 신호(Pleos Vehicle SDK)에 소리를 입히는 앱"),
     "listen": ("P단에서 테마 소리 미리 듣기", "[듣기]를 누르면 소리가 나는 동안 가운데에 아이콘 · 창문 내림 → 용수철 · 오른쪽 깜빡이 → 작은 종 '딩동'"),
     "rec": ("[녹음]을 누르면 가운데에 녹음 창 · 최대 3초", "기본 테마(래틀박스)는 그대로 두고 '래틀박스 복사본' 테마가 새로 생겨 내 목소리가 걸림"),
     "toggle": ("이벤트마다 켜고 끄기 · 위쪽 스위치로 전체 끄기", "와이퍼 소리만 끔 → 금지 표시 · 전체를 끄면 칸 스위치는 잠기고 상태는 그대로 남음"),
@@ -89,7 +89,7 @@ def main():
     r = subprocess.run(["ffmpeg", "-i", joined, "-af", "volumedetect", "-vn", "-f", "null", "-"], capture_output=True, text=True)
     peak = float([l for l in r.stderr.splitlines() if "max_volume" in l][0].split(":")[1].split()[0])
     gain = -2.0 - peak
-    final = os.path.join(D, "차소리_시연영상.mp4")
+    final = os.path.join(D, "카톤_시연영상.mp4")
     run(["ffmpeg", "-y", "-loglevel", "error", "-i", joined, "-c:v", "copy", "-af", f"volume={gain:.1f}dB", "-c:a", "aac", "-b:a", "160k",
          "-movflags", "+faststart", final])
     print("peak", peak, "gain", round(gain, 1), "→", final)

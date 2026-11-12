@@ -1,5 +1,5 @@
 #!/bin/zsh
-# 차소리 시연 촬영(이벤트 확인형): 동작 → 앱이 실제로 소리를 냈다는 로그(PLAY) 확인 → 다음.
+# 카톤 시연 촬영(이벤트 확인형): 동작 → 앱이 실제로 소리를 냈다는 로그(PLAY) 확인 → 다음.
 # 사용: shoot.sh A   (P단 화면·테마·녹음·켜고 끄기·녹음 취소·출발)
 #       shoot.sh B   (주행 중 이벤트)
 #       shoot.sh C   (주차·뒷좌석 자동 전환)
@@ -12,10 +12,10 @@ U=http://127.0.0.1:18088
 post(){ curl -s -m 5 -X POST "$U$1" >/dev/null; }
 tap(){ A shell input tap $1 $2; }
 ms(){ perl -MTime::HiRes -e 'printf "%d", Time::HiRes::time()*1000'; }
-# 오른쪽 화면에 차소리가 보이는지(차소리 작업 visible=true, 내비 작업 visible=false)
-appvis(){ A shell dumpsys activity activities | grep -E "^ +\* Task\{" | grep -q "kr.carsound.app U=.*visible=true" && ! A shell dumpsys activity activities | grep -E "^ +\* Task\{" | grep -q "navigation.app U=.*visible=true"; }
+# 오른쪽 화면에 카톤이 보이는지(카톤 작업 visible=true, 내비 작업 visible=false)
+appvis(){ A shell dumpsys activity activities | grep -E "^ +\* Task\{" | grep -q "kr.cartone.app U=.*visible=true" && ! A shell dumpsys activity activities | grep -E "^ +\* Task\{" | grep -q "navigation.app U=.*visible=true"; }
 front(){ for i in 1 2 3 4; do appvis && return; tap 1462 1372; sleep 3; done; }
-plays(){ A logcat -d -s CarSound:I | grep -c " PLAY $1 "; }
+plays(){ A logcat -d -s CarTone:I | grep -c " PLAY $1 "; }
 SEG=$D/seg_$P.txt
 # 동작 하나: act <라벨> <PLAY키> <명령...>
 act(){
@@ -40,9 +40,9 @@ if [ $P = A ]; then
   post "/vehicle/controls?speed_kph=0"; post "/vehicle/gear?gear=Park"; post "/vehicle/turn-signal?mode=Off"
   post "/vehicle/body?window_fl=0"; post "/vehicle/body?front_wiper=Off"
   post "/vehicle/seat?area=rear_right&kind=occupied&value=true"
-  A shell am force-stop --user 10 kr.carsound.app
-  A shell run-as kr.carsound.app --user 10 rm -rf /data/user/10/kr.carsound.app/shared_prefs /data/user/10/kr.carsound.app/files/voices /data/user/10/kr.carsound.app/files/custom_themes.json
-  A shell am start --user 10 -n kr.carsound.app/.ui.MainActivity >/dev/null; sleep 5; front; sleep 3
+  A shell am force-stop --user 10 kr.cartone.app
+  A shell run-as kr.cartone.app --user 10 rm -rf /data/user/10/kr.cartone.app/shared_prefs /data/user/10/kr.cartone.app/files/voices /data/user/10/kr.cartone.app/files/custom_themes.json
+  A shell am start --user 10 -n kr.cartone.app/.ui.MainActivity >/dev/null; sleep 5; front; sleep 3
 fi
 A emu screenrecord start --time-limit 178 --size 1600x900 --bit-rate 6M --fps 30 $D/raw_$P.webm >/dev/null
 sleep 1.0; T0=$(ms)
@@ -60,11 +60,11 @@ if [ $P = A ]; then
   t=$(( $(ms) - T0 )); tap 1635 623; sleep 7.5
   echo "rec $t $t $(( $(ms) - T0 ))" >> $SEG
   # 화면 밖: 에뮬레이터는 마이크 입력이 없어 녹음 파일을 예시 합성 음성으로 바꾸고 앱을 다시 띄운다
-  id=$(A shell run-as kr.carsound.app --user 10 ls /data/user/10/kr.carsound.app/files/voices | tr -d '\r' | grep '^c' | head -1)
+  id=$(A shell run-as kr.cartone.app --user 10 ls /data/user/10/kr.cartone.app/files/voices | tr -d '\r' | grep '^c' | head -1)
   A push $D/voice/depart.wav /data/local/tmp/depart.wav >/dev/null
-  A shell "cat /data/local/tmp/depart.wav | run-as kr.carsound.app --user 10 sh -c 'cat > /data/user/10/kr.carsound.app/files/voices/$id/depart.wav'"
-  A shell am force-stop --user 10 kr.carsound.app
-  A shell am start --user 10 -n kr.carsound.app/.ui.MainActivity >/dev/null; sleep 5; front; sleep 3
+  A shell "cat /data/local/tmp/depart.wav | run-as kr.cartone.app --user 10 sh -c 'cat > /data/user/10/kr.cartone.app/files/voices/$id/depart.wav'"
+  A shell am force-stop --user 10 kr.cartone.app
+  A shell am start --user 10 -n kr.cartone.app/.ui.MainActivity >/dev/null; sleep 5; front; sleep 3
   act listen_voice depart "tap 1526 623"
   # 켜고 끄기: 와이퍼 칸만 끔(금지 표시) → 전체 스위치 끔(칸 스위치 잠김) → 전체 다시 켬. 와이퍼는 꺼 둔 채로 주행한다
   t=$(( $(ms) - T0 )); tap 1430 1123; sleep 2.4; tap 2475 150; sleep 2.6; tap 2475 150; sleep 1.8
@@ -100,5 +100,5 @@ else
   sleep 1.5
 fi
 A emu screenrecord stop >/dev/null; sleep 4
-A logcat -d -s CarSound:I > $D/play_$P.log
+A logcat -d -s CarTone:I > $D/play_$P.log
 cat $SEG

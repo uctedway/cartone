@@ -1,4 +1,4 @@
-# 차소리 (가칭)
+# 카톤 (CarTone)
 
 깜빡이·창문·기어 같은 차량 동작마다, 고른 테마 소리나 가족이 녹음한 목소리를 들려주는 Pleos Connect(Android Automotive)용 앱입니다.
 서버·계정·휴대폰 앱 없이 차 안에서만 동작합니다.
@@ -27,15 +27,15 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
 제출용 빌드는 `./gradlew assembleRelease`로 만듭니다(기본 디버그 키로 서명).
-빌드된 파일은 [release/carsound-v0.1.apk](release/carsound-v0.1.apk)에 있습니다.
+빌드된 파일은 [release/cartone-v0.1.apk](release/cartone-v0.1.apk)에 있습니다.
 
 ## 폴더 구조
 
 ```
 app/src/main/
 ├─ assets/themes/<테마>/        기본 테마: theme.json(이름·색·움직임) + <이벤트키>_<번호>.wav
-└─ java/kr/carsound/app/
-   ├─ CarSoundApp.kt            부품을 만들고 서로 연결(이벤트 → 소리 → 알림 띠)
+└─ java/kr/cartone/app/
+   ├─ CarToneApp.kt            부품을 만들고 서로 연결(이벤트 → 소리 → 알림 띠)
    ├─ core/                     차량 이벤트·아이콘 종류·기어 정의
    ├─ vehicle/                  Vehicle SDK 리스너 등록, 값의 "변화"만 이벤트로 바꾸기
    ├─ sound/                    소리 미리 불러오기와 재생(변형 고르기, 좌우 음량, 몰림 방지)
