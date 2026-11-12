@@ -16,10 +16,29 @@
 - 주행 중에는 화면 대신 소리와 알림 띠(내비 위 2.5~4초, 깜빡이는 켜져 있는 동안 점멸 간격마다 소리를 내며 유지, 터치를 받지 않음)
 - 순정 경고음은 건드리지 않고 그 위에 1.5초 이내의 소리만 덧붙임
 
-## 빌드와 설치
+## 실행 방법
 
-- 필요한 것: JDK 17, Android SDK 34, Pleos Connect 에뮬레이터(v2.1.0)
-- Pleos Vehicle SDK 2.3.2(`ai.pleos.playground:Vehicle`)를 씁니다.
+1. Pleos Connect 에뮬레이터를 켭니다.
+2. 빌드된 설치 파일 [apk/CarTone_release.apk](apk/CarTone_release.apk)를 설치합니다.
+
+```bash
+adb install -r apk/CarTone_release.apk
+```
+
+3. 앱 목록에서 "카톤"을 열고, 처음 한 번 마이크·알림·다른 앱 위에 표시 권한을 허용합니다.
+4. 에뮬레이터의 차량 시뮬레이터에서 기어, 깜빡이, 창문 값을 바꾸면 소리와 알림 띠가 나옵니다. `tools/demo/car.sh`로도 값을 보낼 수 있습니다.
+
+## 테스트 환경과 필요한 설정
+
+- Pleos Connect 에뮬레이터 v2.1.0, 화면 규격 2560x1440(가로)
+- Pleos Vehicle SDK 2.3.2(`ai.pleos.playground:Vehicle`)
+- 필요한 권한: 마이크(목소리 녹음), 알림, 다른 앱 위에 표시(주행 중 알림 띠)
+- 서버·계정·API 키가 없어 따로 넣을 설정값이 없습니다.
+- 실제 차량에서는 시험하지 않았습니다.
+
+## 빌드
+
+- 필요한 것: JDK 17, Android SDK 34
 
 ```bash
 ./gradlew assembleDebug
@@ -27,7 +46,7 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
 제출용 빌드는 `./gradlew assembleRelease`로 만듭니다(기본 디버그 키로 서명).
-빌드된 파일은 [release/cartone-v0.1.apk](release/cartone-v0.1.apk)에 있습니다.
+빌드된 파일은 [apk/CarTone_release.apk](apk/CarTone_release.apk)에 있습니다.
 
 ## 폴더 구조
 
@@ -59,7 +78,7 @@ tools/
 ├─ demo/car.sh                  에뮬레이터 차량 시뮬레이터에 값 보내기(시연용)
 └─ video/                       시연 영상 촬영·편집 스크립트
 docs/                           README에 쓰는 화면 캡처
-release/                        빌드된 APK
+apk/                            빌드된 APK(CarTone_release.apk)
 SOUND_SOURCES.md                소리 출처와 라이선스
 ```
 
