@@ -1,16 +1,20 @@
 """
-차소리 시연 영상 편집:
-- raw_<파트>.webm(에뮬레이터 화면+소리 녹화)에서 seg_<파트>.txt의 장면 구간만 잘라 이어 붙인다.
-- 구간: [소리 나기 1.4초 전 또는 동작 시점 중 늦은 쪽, 소리 후 2.6초까지] (에뮬레이터 지연으로 기다린 시간은 버림)
+차소리 시연 영상 편집(ffmpeg).
+- raw_<파트>.webm(에뮬레이터 화면+소리 녹화)에서 cuts.txt에 적힌 구간만 잘라 이어 붙인다.
+- cuts.txt 한 줄: <파트> <자막 이름> <시작 초> <끝 초>. 시각은 녹화 파일 안의 시각이다.
+  소리 장면은 녹화에 실제로 들어간 소리 시작 시점(silencedetect로 찾음)의 1.3초쯤 앞에서 시작한다.
+  촬영 스크립트가 적어 둔 시각은 에뮬레이터 지연 때문에 최대 2초 어긋나서 쓰지 않는다.
+- 조각을 따로 만들어 붙이면 조각마다 소리 길이가 조금씩 달라 뒤로 갈수록 화면과 어긋난다.
+  그래서 한 번의 ffmpeg 실행 안에서 화면과 소리를 같은 길이로 잘라 함께 이어 붙인다.
 - 화면 아래 180px 자막 띠, 소리는 에뮬레이터에서 녹음된 그대로이고 음량만 키운다.
-사용: python3 build.py <녹화시작 오프셋 초>
+사용: python3 build.py
 """
 import os
 import subprocess
 import sys
 
 D = os.path.dirname(os.path.abspath(__file__))
-OFF = float(sys.argv[1]) if len(sys.argv) > 1 else 1.0  # 영상 0초 = T0 - OFF
+FPS = 30
 FOOT = "Pleos Connect 에뮬레이터 화면과 소리를 그대로 녹화 · 차량 값은 에뮬레이터 차량 시뮬레이터로 입력 · 목소리 예시는 합성 음성"
 
 CAP = {
@@ -30,10 +34,6 @@ CAP = {
     "park": ("도착해서 P단으로", "칼림바가 내려오며 마무리"),
     "rear": ("뒷좌석 탑승 → 래틀박스 자동 전환 (사용자가 켠 경우)", "드럼킷이던 소리가 래틀박스로 바뀌고 풍경 소리 · 알림 띠도 래틀박스 색"),
 }
-# 장면 라벨 → 자막 묶음
-GROUP = {"listen_window": "listen", "listen_turn": "listen", "listen_voice": "voice",
-         "drum_park": "drum", "drum_window": "drum", "drum_turn": "drum", "record_start": "record", "depart": "record"}
-
 
 def run(cmd):
     r = subprocess.run(cmd, capture_output=True, text=True)
@@ -41,49 +41,52 @@ def run(cmd):
         sys.exit(" ".join(cmd[:4]) + "\n" + r.stderr[-1500:])
 
 
-def segments():
+def cuts():
+    """cuts.txt를 읽어 (파트, 자막 이름, 시작 초, 길이 초) 목록으로 만든다. 길이는 프레임 단위로 맞춘다"""
     out = []
-    for part in "ABC":
-        lines = [l.split() for l in open(os.path.join(D, f"seg_{part}.txt"), encoding="utf8") if l.strip()]
-        i = 0
-        while i < len(lines):
-            label, t1, t2, t3 = lines[i][0], *map(int, lines[i][1:])
-            if label == "record_start":  # 녹음 시작 장면은 다음 출발 장면과 하나로 이어 보여준다
-                _, _, n2, n3 = lines[i + 1][0], *map(int, lines[i + 1][1:])
-                out.append((part, "record", t1 - 300, n3)); i += 2; continue
-            start = max(t1, t2 - 1400) - 300
-            out.append((part, GROUP.get(label, label), start, t3))
-            i += 1
+    for line in open(os.path.join(D, "cuts.txt"), encoding="utf8"):
+        if not line.strip():
+            continue
+        part, cap, s, e = line.split()
+        frames = round((float(e) - float(s)) * FPS)
+        out.append((part, cap, float(s), frames / FPS))
     return out
 
 
+def caption(tmp, cap):
+    """자막 띠 그림을 한 번만 만들어 돌려쓴다"""
+    png = os.path.join(tmp, f"cap_{cap}.png")
+    if not os.path.exists(png):
+        t, sub = CAP[cap]
+        run(["swift", os.path.join(D, "mkcap.swift"), png, t, sub, FOOT])
+    return png
+
+
 def main():
-    segs = segments()
+    segs = cuts()
     tmp = os.path.join(D, "cut"); os.makedirs(tmp, exist_ok=True)
-    parts = []
-    for k, (part, cap, s, e) in enumerate(segs):
-        png = os.path.join(tmp, f"cap_{cap}.png")
-        if not os.path.exists(png):
-            t, sub = CAP[cap]
-            run(["swift", os.path.join(D, "mkcap.swift"), png, t, sub, FOOT])
-        ss, dur = max(0.0, s / 1000 + OFF), (e - s) / 1000
-        out = os.path.join(tmp, f"s{k:02d}.mp4")
-        run(["ffmpeg", "-y", "-loglevel", "error", "-ss", f"{ss:.3f}", "-t", f"{dur:.3f}", "-i", os.path.join(D, f"raw_{part}.webm"), "-i", png,
-             "-filter_complex", "[0:v]fps=30,scale=-2:900,pad=1920:1080:(ow-iw)/2:0:black[v];[1:v]scale=1920:180[c];[v][c]overlay=0:900,format=yuv420p[o];"
-             "[0:a]aresample=48000,aformat=channel_layouts=stereo[a]",
-             "-map", "[o]", "-map", "[a]", "-c:v", "libx264", "-preset", "medium", "-crf", "20", "-c:a", "aac", "-b:a", "160k", out])
-        parts.append(out)
-        print(f"{k:02d} {part} {cap:12s} {ss:7.2f}s +{dur:.2f}s")
-    lst = os.path.join(tmp, "list.txt")
-    open(lst, "w").write("".join(f"file '{p}'\n" for p in parts))
-    joined = os.path.join(tmp, "joined.mp4")
-    run(["ffmpeg", "-y", "-loglevel", "error", "-f", "concat", "-safe", "0", "-i", lst, "-c", "copy", joined])
+    inputs, graph, pads = [], [], ""
+    for k, (part, cap, s, dur) in enumerate(segs):
+        # 구간 앞뒤로 여유를 두고 읽은 뒤, 필터에서 화면과 소리를 정확히 같은 길이로 자른다
+        inputs += ["-ss", f"{s:.3f}", "-t", f"{dur + 1:.3f}", "-i", os.path.join(D, f"raw_{part}.webm"), "-i", caption(tmp, cap)]
+        v, c = 2 * k, 2 * k + 1
+        graph.append(f"[{v}:v]fps={FPS},scale=-2:900,pad=1920:1080:(ow-iw)/2:0:black[v{k}];[{c}:v]scale=1920:180[c{k}];"
+                     f"[v{k}][c{k}]overlay=0:900,trim=duration={dur:.4f},setpts=PTS-STARTPTS,format=yuv420p[o{k}]")
+        graph.append(f"[{v}:a]aresample=48000:async=1:first_pts=0,aformat=channel_layouts=stereo,apad,"
+                     f"atrim=duration={dur:.4f},asetpts=PTS-STARTPTS[a{k}]")
+        pads += f"[o{k}][a{k}]"
+        print(f"{k:02d} {part} {cap:12s} {s:7.2f}s +{dur:.2f}s")
+    graph.append(f"{pads}concat=n={len(segs)}:v=1:a=1[v][a]")
+    joined = os.path.join(tmp, "joined.mkv")
+    run(["ffmpeg", "-y", "-loglevel", "error"] + inputs + ["-filter_complex", ";".join(graph), "-map", "[v]", "-map", "[a]",
+         "-r", str(FPS), "-c:v", "libx264", "-preset", "medium", "-crf", "20", "-c:a", "pcm_s16le", joined])
     # 에뮬레이터 차 볼륨이 낮게 녹음되므로 전체 음량만 올린다(봉우리 -2dB 기준)
     r = subprocess.run(["ffmpeg", "-i", joined, "-af", "volumedetect", "-vn", "-f", "null", "-"], capture_output=True, text=True)
     peak = float([l for l in r.stderr.splitlines() if "max_volume" in l][0].split(":")[1].split()[0])
     gain = -2.0 - peak
     final = os.path.join(D, "차소리_시연영상.mp4")
-    run(["ffmpeg", "-y", "-loglevel", "error", "-i", joined, "-c:v", "copy", "-af", f"volume={gain:.1f}dB", "-c:a", "aac", "-b:a", "160k", final])
+    run(["ffmpeg", "-y", "-loglevel", "error", "-i", joined, "-c:v", "copy", "-af", f"volume={gain:.1f}dB", "-c:a", "aac", "-b:a", "160k",
+         "-movflags", "+faststart", final])
     print("peak", peak, "gain", round(gain, 1), "→", final)
 
 
