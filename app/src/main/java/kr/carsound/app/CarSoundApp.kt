@@ -151,9 +151,10 @@ class CarSoundApp : Application() {
         Log.d("CarSound", "재생 ${e.key} → $played")
         if (!played) return
         if (e.sustained) {
-            // 깜빡이: 꺼질 때까지 알림 띠를 띄워 두고 소리를 되풀이한다
-            overlay.show(e, theme, theme.isVoice(e), holdMs = null)
+            // 깜빡이: 꺼질 때까지 소리를 되풀이하고 알림 띠를 띄워 둔다.
+            // 알림 띠 창을 붙이는 데 시간이 걸리므로, 박자가 밀리지 않게 반복부터 시작한다
             sustain.start(e, sound.lastDurationMs)
+            overlay.show(e, theme, theme.isVoice(e), holdMs = null)
         } else {
             overlay.show(e, theme, theme.isVoice(e), holdFor(e))
         }

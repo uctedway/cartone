@@ -7,7 +7,7 @@ import kr.carsound.app.core.CarEvent
 
 /**
  * 켜져 있는 동안 이어지는 이벤트(깜빡이)의 소리를 꺼질 때까지 되풀이한다.
- * - 소리 하나가 끝나고 잠깐 쉰 뒤 다음 소리를 낸다.
+ * - 깜빡이가 한 번 점멸할 때마다 한 번씩, 일정한 간격으로 소리를 낸다(순정 작동음과 박자가 어긋나지 않게).
  * - 꺼졌다는 알림이 오면 더는 내지 않고, 나던 소리가 끝날 즈음 멈췄다고 알린다.
  * - 차량 값이 잠깐 끊겼다 다시 켜지면 새로 시작하지 않고 그대로 잇는다.
  * - 끄는 걸 잊은 깜빡이가 끝없이 울리지 않도록 최대 시간이 지나면 스스로 멈춘다.
@@ -24,6 +24,9 @@ class SustainLoop(
     private var active: CarEvent? = null
     private var startedAt = 0L
     private var soundEndsAt = 0L
+
+    /** 지금까지 낸 횟수. 다음 소리 시각을 시작 시각 기준으로 계산해 간격이 밀리지 않게 한다 */
+    private var count = 0
     private var ending = false
     private val tick = Runnable { repeat() }
     private val stopNow = Runnable { finish() }
@@ -34,7 +37,7 @@ class SustainLoop(
         if (ending) {
             ending = false
             main.removeCallbacks(stopNow)
-            main.postDelayed(tick, (soundEndsAt - now()).coerceAtLeast(0) + GAP_MS)
+            main.postDelayed(tick, untilNextBeat())
         }
         return true
     }
@@ -44,6 +47,7 @@ class SustainLoop(
         finish()
         active = e
         startedAt = now()
+        count = 0
         schedule(firstMs)
     }
 
@@ -67,7 +71,15 @@ class SustainLoop(
 
     private fun schedule(soundMs: Long) {
         soundEndsAt = now() + soundMs
-        main.postDelayed(tick, (soundMs + GAP_MS).coerceAtLeast(MIN_PERIOD_MS))
+        count++
+        main.postDelayed(tick, untilNextBeat())
+    }
+
+    /** 다음 점멸 박자까지 남은 시간(ms). 시작 시각에서 간격의 배수 위치를 쓴다 */
+    private fun untilNextBeat(): Long {
+        val elapsed = now() - startedAt
+        if (count * PERIOD_MS <= elapsed) count = (elapsed / PERIOD_MS).toInt() + 1
+        return count * PERIOD_MS - elapsed
     }
 
     private fun finish() {
@@ -82,11 +94,11 @@ class SustainLoop(
     private fun now() = SystemClock.elapsedRealtime()
 
     companion object {
-        /** 소리와 소리 사이 쉬는 시간(ms) */
-        private const val GAP_MS = 350L
-
-        /** 소리가 아주 짧아도 이보다 자주 내지는 않는다(ms) */
-        private const val MIN_PERIOD_MS = 1200L
+        /**
+         * 깜빡이 점멸 간격(ms). Pleos 에뮬레이터의 순정 작동음(똑-딱 한 쌍)이 1초마다 나는 것에 맞췄다.
+         * SDK는 켜짐·꺼짐만 알려주고 점멸 박자는 주지 않아서, 켜진 순간부터 이 간격으로 센다(실제 차량에서는 보정 필요).
+         */
+        private const val PERIOD_MS = 1000L
 
         /** 꺼진 뒤 표시를 남겨 두는 시간 범위(ms). 값이 잠깐 끊긴 것인지 기다리는 시간이기도 하다 */
         private const val GRACE_MS = 600L

@@ -21,6 +21,11 @@ RATTLE = os.environ.get("CARSOUND_RATTLE_SRC", os.path.join(ROOT, "sources", "ra
 DRUM = os.environ.get("CARSOUND_DRUM_SRC", os.path.join(ROOT, "sources", "drum"))
 
 
+# 깜빡이 소리의 두 번째 종 위치와 그 뒤 여운(ms). 합쳐서 1초(점멸 간격)를 넘지 않게 한다
+BLINK_SECOND_MS = 410
+BLINK_TAIL_MS = 540
+
+
 def ffmpeg(args):
     """ffmpeg를 조용히 실행하고 실패하면 바로 멈춘다"""
     r = subprocess.run(["ffmpeg", "-y", "-loglevel", "error"] + args, capture_output=True, text=True)
@@ -60,8 +65,6 @@ def d(name):
 def build_rattle(out):
     """래틀박스: 이벤트마다 장난감 소리 하나, 변형이 있으면 여러 개"""
     variants = {
-        "turn_left": ["denden_left_mid_0", "denden_left_mid_1", "denden_left_hard_0"],
-        "turn_right": ["denden_right_mid_0", "denden_right_mid_1", "denden_right_hard_0"],
         "window_down": ["spring_down_mid_0", "spring_down_mid_1"],
         "window_up": ["spring_up_mid_0", "spring_up_mid_1"],
         "door_open": ["squeak_in_mid_0", "squeak_in_mid_1"],
@@ -75,6 +78,12 @@ def build_rattle(out):
     for ev, names in variants.items():
         for i, n in enumerate(names):
             single(r(n + ".wav"), os.path.join(out, f"{ev}_{i}.wav"))
+    # 깜빡이: 작은 종 두 개로 "딩-동". 점멸 한 번(1초)에 한 번씩 되풀이되므로 1초 안에 끝나게 만든다.
+    # 왼쪽은 딩→동, 오른쪽은 동→딩. 두 번째 종은 순정 작동음의 두 번째 박(약 0.41초)에 맞춘다
+    for i in range(2):
+        a_, b_ = r(f"twinbell_a_soft_{i}.wav"), r(f"twinbell_b_soft_{i}.wav")
+        sequence([(a_, 0, 0), (b_, BLINK_SECOND_MS, 0)], os.path.join(out, f"turn_left_{i}.wav"), BLINK_TAIL_MS)
+        sequence([(b_, 0, 0), (a_, BLINK_SECOND_MS, 0)], os.path.join(out, f"turn_right_{i}.wav"), BLINK_TAIL_MS)
     # 출발: 실로폰 도-미-솔-도 올라가기 / 주차: 칼림바 내려오기 / 뒷좌석 탑승: 풍경 반짝임
     sequence([(r(f"xylo_{n}_hard.wav"), i * 140, -2) for i, n in enumerate([0, 2, 3, 5])], os.path.join(out, "depart_0.wav"), 900)
     sequence([(r(f"kalimba_{n}_soft.wav"), i * 180, 0) for i, n in enumerate([5, 3, 2, 0])], os.path.join(out, "park_0.wav"), 900)
