@@ -44,7 +44,7 @@ if [ $P = A ]; then
   A shell run-as kr.carsound.app --user 10 rm -rf /data/user/10/kr.carsound.app/shared_prefs /data/user/10/kr.carsound.app/files/voices /data/user/10/kr.carsound.app/files/custom_themes.json
   A shell am start --user 10 -n kr.carsound.app/.ui.MainActivity >/dev/null; sleep 5; front; sleep 3
 fi
-A emu screenrecord start --time-limit 178 --size 1600x900 --bit-rate 5M --fps 24 $D/raw_$P.webm >/dev/null
+A emu screenrecord start --time-limit 178 --size 1600x900 --bit-rate 6M --fps 30 $D/raw_$P.webm >/dev/null
 sleep 1.0; T0=$(ms)
 
 if [ $P = A ]; then
