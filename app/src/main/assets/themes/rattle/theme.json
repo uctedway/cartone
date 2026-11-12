@@ -1,0 +1,12 @@
+{
+  "id": "rattle",
+  "name": "래틀박스",
+  "subtitle": "아기와 함께 탈 때",
+  "colors": {
+    "bg": "#F4F5F6",
+    "card": "#FFFFFF",
+    "accent": "#B54F65",
+    "ink": "#202930"
+  },
+  "motion": "bounce"
+}

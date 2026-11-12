@@ -1,0 +1,12 @@
+{
+  "id": "drum",
+  "name": "드럼킷",
+  "subtitle": "운전이 곧 연주",
+  "colors": {
+    "bg": "#141B23",
+    "card": "#202A35",
+    "accent": "#77D8D0",
+    "ink": "#F2F5F8"
+  },
+  "motion": "pulse"
+}
