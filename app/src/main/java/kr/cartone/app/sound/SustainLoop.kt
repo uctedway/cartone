@@ -13,8 +13,8 @@ import kr.cartone.app.core.CarEvent
  * - 끄는 걸 잊은 깜빡이가 끝없이 울리지 않도록 최대 시간이 지나면 스스로 멈춘다.
  * 모두 메인 스레드에서 부른다.
  *
- * @param playAgain 소리를 한 번 더 낸다. 낸 소리 길이(ms)를 돌려주고, 낼 수 없으면 null
- * @param onStopped 반복이 끝났을 때(표시를 내리는 데 쓴다)
+ * playAgain은 소리를 한 번 더 내고 그 길이(ms)를 돌려준다. 낼 수 없으면 null을 돌려준다.
+ * onStopped는 반복이 끝났을 때 불린다(표시를 내리는 데 쓴다).
  */
 class SustainLoop(
     private val playAgain: (CarEvent) -> Long?,
@@ -59,7 +59,6 @@ class SustainLoop(
         main.postDelayed(stopNow, (soundEndsAt - now()).coerceIn(GRACE_MS, MAX_TAIL_MS))
     }
 
-    /** 바로 멈춘다 */
     fun cancel() = finish()
 
     private fun repeat() {

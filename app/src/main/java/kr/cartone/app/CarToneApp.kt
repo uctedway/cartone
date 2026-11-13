@@ -135,7 +135,7 @@ class CarToneApp : Application() {
     /** 아이콘·알림 띠를 보여줄 시간: 이벤트별 최소 시간과 소리 길이 중 긴 쪽 */
     fun holdFor(e: CarEvent): Long = maxOf(e.holdMs, sound.lastDurationMs + HOLD_TAIL_MS)
 
-    /** 차량 이벤트 처리: 테마 자동 전환 → 소리 → 알림 띠 */
+    /** 차량 이벤트 처리. 테마 자동 전환, 소리, 알림 띠 순서로 한다 */
     private fun handle(e: CarEvent) {
         Log.i("CarTone", "이벤트 ${e.key}")
         // 깜빡이 값이 잠깐 끊겼다 다시 온 것이면 하던 반복을 그대로 잇는다

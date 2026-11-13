@@ -44,13 +44,11 @@ class SoundService : Service() {
     // 시스템이 서비스를 내렸다가도 다시 살리도록 한다
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int) = START_STICKY
 
-    /** 서비스가 내려가면 감시도 끈다 */
     override fun onDestroy() {
         (application as CarToneApp).stopWatching()
         super.onDestroy()
     }
 
-    /** 바인딩은 쓰지 않는다 */
     override fun onBind(intent: Intent?): IBinder? = null
 
     companion object {

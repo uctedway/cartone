@@ -46,7 +46,6 @@ class CenterStage(context: Context) : FrameLayout(context) {
         if (holdMs != null) postDelayed(hideLater, holdMs)
     }
 
-    /** 빠르게 페이드 아웃하고 숨긴다 */
     fun hide() {
         removeCallbacks(hideLater)
         animate().cancel()

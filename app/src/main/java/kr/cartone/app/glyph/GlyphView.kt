@@ -21,7 +21,6 @@ class GlyphView(context: Context) : View(context) {
     private var scaleNow = 1f
     private var alphaNow = 1f
 
-    /** 등장 애니메이션 한 번 */
     fun play(motion: Motion) {
         val anim = when (motion) {
             Motion.BOUNCE -> ValueAnimator.ofFloat(0.4f, 1f).apply { interpolator = OvershootInterpolator(3f); duration = 520 }

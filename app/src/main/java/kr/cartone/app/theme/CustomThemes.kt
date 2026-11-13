@@ -15,7 +15,6 @@ import org.json.JSONObject
  * 저장 위치: files/custom_themes.json (차 안에만 저장)
  */
 class CustomThemes(context: Context, private val voices: VoiceStore) {
-    /** 커스텀 테마 하나의 저장 내용 */
     data class Entry(val id: String, val name: String, val base: String, val picks: LinkedHashMap<CarEvent, String>)
 
     private val file = File(context.filesDir, "custom_themes.json")
@@ -73,7 +72,6 @@ class CustomThemes(context: Context, private val voices: VoiceStore) {
         }
     }
 
-    /** 목록 전체를 JSON으로 다시 쓴다 */
     private fun save() {
         val arr = JSONArray()
         for (e in entries) {

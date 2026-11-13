@@ -79,7 +79,7 @@ def build_rattle(out):
         for i, n in enumerate(names):
             single(r(n + ".wav"), os.path.join(out, f"{ev}_{i}.wav"))
     # 깜빡이: 작은 종 두 개로 "딩-동". 점멸 한 번(1초)에 한 번씩 되풀이되므로 1초 안에 끝나게 만든다.
-    # 왼쪽은 딩→동, 오른쪽은 동→딩. 두 번째 종은 순정 작동음의 두 번째 박(약 0.41초)에 맞춘다
+    # 왼쪽은 딩-동, 오른쪽은 동-딩. 두 번째 종은 순정 작동음의 두 번째 박(약 0.41초)에 맞춘다
     for i in range(2):
         a_, b_ = r(f"twinbell_a_soft_{i}.wav"), r(f"twinbell_b_soft_{i}.wav")
         sequence([(a_, 0, 0), (b_, BLINK_SECOND_MS, 0)], os.path.join(out, f"turn_left_{i}.wav"), BLINK_TAIL_MS)
@@ -94,7 +94,7 @@ def build_drum(out):
     """드럼킷: 실제 드럼 녹음을 박자(120bpm 16분음표 = 125ms)에 맞춰 섞는다"""
     s16 = 125
     kick, snare, crash = d("clear_exp_snarekick_studio_kick_3_1.wav"), "clear_snarekick_snare_{}_{}.wav", d("cymbals_crash_3_1.wav")
-    # 출발: 스네어 4번 → 탐 하이·미드·플로어 → 크래시+킥
+    # 출발: 스네어 4번, 탐 하이·미드·플로어, 크래시+킥 순서
     depart = [(d(snare.format(2, k % 3 + 1)), i * s16, -4 + i) for i, k in enumerate(range(4))]
     depart += [(d("toms_hi_3_1.wav"), 4 * s16, -2), (d("toms_mid_3_1.wav"), 5 * s16, -2), (d("toms_floor_3_1.wav"), 6 * s16, -1)]
     depart += [(kick, 8 * s16, 0), (crash, 8 * s16, -3)]

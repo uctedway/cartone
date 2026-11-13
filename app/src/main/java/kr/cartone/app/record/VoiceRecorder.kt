@@ -68,7 +68,6 @@ class VoiceRecorder(private val store: VoiceStore) {
         }.apply { start() }
     }
 
-    /** 녹음을 마치고 저장한다 */
     fun stop() { keep = true; running = false }
 
     /** 녹음을 버린다(차량 출발 등) */

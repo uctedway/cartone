@@ -39,7 +39,6 @@ class VehicleWatcher(context: Context) {
     private val worker = Handler(HandlerThread("vehicle-register").apply { start() }.looper)
     private val edges = EdgeTracker()
 
-    /** 차량 이벤트가 생겼을 때 */
     var onEvent: ((CarEvent) -> Unit)? = null
 
     /** 켜져 있는 동안 이어지는 이벤트(깜빡이)가 끝났을 때 */
@@ -51,7 +50,6 @@ class VehicleWatcher(context: Context) {
     /** 기어가 바뀌었을 때(첫 값 포함). 녹음 잠금이 이 값을 따른다 */
     var onGear: ((Gear) -> Unit)? = null
 
-    /** 마지막으로 확인한 기어 */
     var gear: Gear = Gear.UNKNOWN
         private set
 
@@ -62,7 +60,6 @@ class VehicleWatcher(context: Context) {
         worker.postDelayed({ registerAll() }, 1500)
     }
 
-    /** SDK 연결을 끊는다 */
     fun stop() = runCatching { vehicle.release() }
 
     /** 이벤트를 메인 스레드로 옮겨 알린다 */
@@ -73,39 +70,54 @@ class VehicleWatcher(context: Context) {
         runCatching(block).onFailure { Log.w(TAG, "$name 등록 실패: $it") }
     }
 
-    /** 도메인별 리스너 등록: 기어, 깜빡이, 창문, 문, 안전벨트, 좌석, 와이퍼, 에어컨 */
+    /** 도메인별로 리스너를 등록한다 */
     private fun registerAll() {
-        safe("기어") {
-            // 리스너는 바뀔 때만 알려줄 수 있어, 지금 기어를 먼저 한 번 읽어 둔다
-            vehicle.getGear().getCurrentGearSelectionState(
-                { g -> main.post { onGearChanged(toGear(g)) } },
-                { e -> Log.w(TAG, "현재 기어 읽기 실패 $e") },
-            )
-            vehicle.getGear().registerGearSelection(object : GearSelectionListener {
-                override fun onSelected(g: VehicleGear?) = main.post { onGearChanged(toGear(g)) }.let {}
-                override fun onFailed(e: Exception) = Log.w(TAG, "기어 오류 $e").let {}
-            })
-        }
-        safe("깜빡이") {
-            vehicle.getTurnSignal().registerTurnSignalState(object : TurnSignalStateListener {
-                override fun onTurnSignalStateUpdated(v: TurnSignalValue?) {
-                    if (!edges.changed("turn", v?.name)) return
-                    val now = when (v) {
-                        TurnSignalValue.LEFT -> CarEvent.TURN_LEFT
-                        TurnSignalValue.RIGHT -> CarEvent.TURN_RIGHT
-                        else -> null
-                    }
-                    // 꺼지거나 반대쪽으로 바뀌면 이전 깜빡이를 먼저 끝내고, 새로 켜진 쪽을 알린다
-                    main.post {
-                        turning?.takeIf { it != now }?.let { onEventEnd?.invoke(it) }
-                        turning = now
-                        now?.let { onEvent?.invoke(it) }
-                    }
+        watchGear()
+        watchTurnSignal()
+        watchWindows()
+        watchDoors()
+        watchSeatBelt()
+        watchRearSeats()
+        watchWiper()
+        watchAirConditioner()
+    }
+
+    /** 기어: 출발·주차·후진과 녹음 잠금의 기준 */
+    private fun watchGear() = safe("기어") {
+        // 리스너는 바뀔 때만 알려줄 수 있어, 지금 기어를 먼저 한 번 읽어 둔다
+        vehicle.getGear().getCurrentGearSelectionState(
+            { g -> main.post { onGearChanged(toGear(g)) } },
+            { e -> Log.w(TAG, "현재 기어 읽기 실패 $e") },
+        )
+        vehicle.getGear().registerGearSelection(object : GearSelectionListener {
+            override fun onSelected(g: VehicleGear?) = main.post { onGearChanged(toGear(g)) }.let {}
+            override fun onFailed(e: Exception) = Log.w(TAG, "기어 오류 $e").let {}
+        })
+    }
+
+    /** 깜빡이: 켜질 때 이벤트, 꺼지거나 반대쪽으로 바뀔 때 끝 알림 */
+    private fun watchTurnSignal() = safe("깜빡이") {
+        vehicle.getTurnSignal().registerTurnSignalState(object : TurnSignalStateListener {
+            override fun onTurnSignalStateUpdated(v: TurnSignalValue?) {
+                if (!edges.changed("turn", v?.name)) return
+                val now = when (v) {
+                    TurnSignalValue.LEFT -> CarEvent.TURN_LEFT
+                    TurnSignalValue.RIGHT -> CarEvent.TURN_RIGHT
+                    else -> null
                 }
-                override fun onFailed(e: Exception) = Log.w(TAG, "깜빡이 오류 $e").let {}
-            })
-        }
-        // 창문은 운전석·조수석 두 곳을 본다. 값이 커지면 내려가는(열리는) 것
+                // 꺼지거나 반대쪽으로 바뀌면 이전 깜빡이를 먼저 끝내고, 새로 켜진 쪽을 알린다
+                main.post {
+                    turning?.takeIf { it != now }?.let { onEventEnd?.invoke(it) }
+                    turning = now
+                    now?.let { onEvent?.invoke(it) }
+                }
+            }
+            override fun onFailed(e: Exception) = Log.w(TAG, "깜빡이 오류 $e").let {}
+        })
+    }
+
+    /** 창문: 운전석·조수석 두 곳을 본다. 값이 커지면 내려가는(열리는) 것 */
+    private fun watchWindows() {
         for (w in listOf(WindowValue.ROW_1_LEFT, WindowValue.ROW_1_RIGHT)) safe("창문 $w") {
             vehicle.getWindow().registerWindowPosition(WindowArea(w), object : WindowPositionListener {
                 override fun onWindowPositionUpdated(pos: Int?) {
@@ -114,6 +126,10 @@ class VehicleWatcher(context: Context) {
                 override fun onFailed(e: Exception) = Log.w(TAG, "창문 오류 $e").let {}
             })
         }
+    }
+
+    /** 문: 네 곳 모두 본다. 값이 0보다 크면 열린 것 */
+    private fun watchDoors() {
         for (d in listOf(DoorValue.ROW_1_LEFT, DoorValue.ROW_1_RIGHT, DoorValue.ROW_2_LEFT, DoorValue.ROW_2_RIGHT)) safe("문 $d") {
             vehicle.getDoor().registerDoorPosition(DoorArea(d), object : DoorPositionListener {
                 override fun onPositionUpdated(pos: Int?) {
@@ -123,15 +139,20 @@ class VehicleWatcher(context: Context) {
                 override fun onFailed(e: Exception) = Log.w(TAG, "문 오류 $e").let {}
             })
         }
-        safe("안전벨트") {
-            vehicle.getSeat().registerSeatBeltBuckledState(SeatArea(SeatValue.ROW_1_LEFT), object : SeatBeltBuckledStateListener {
-                override fun onSeatBeltBuckledStateUpdated(on: Boolean?) {
-                    if (edges.changed("belt", on) && on == true) emit(CarEvent.BELT_ON)
-                }
-                override fun onFailed(e: Exception) = Log.w(TAG, "벨트 오류 $e").let {}
-            })
-        }
-        // 뒷좌석 탑승: 아이 테마 자동 전환에 쓴다
+    }
+
+    /** 안전벨트: 운전석을 맬 때만 알린다 */
+    private fun watchSeatBelt() = safe("안전벨트") {
+        vehicle.getSeat().registerSeatBeltBuckledState(SeatArea(SeatValue.ROW_1_LEFT), object : SeatBeltBuckledStateListener {
+            override fun onSeatBeltBuckledStateUpdated(on: Boolean?) {
+                if (edges.changed("belt", on) && on == true) emit(CarEvent.BELT_ON)
+            }
+            override fun onFailed(e: Exception) = Log.w(TAG, "벨트 오류 $e").let {}
+        })
+    }
+
+    /** 뒷좌석 탑승: 아이 테마 자동 전환에 쓴다 */
+    private fun watchRearSeats() {
         for (s in listOf(SeatValue.ROW_2_LEFT, SeatValue.ROW_2_RIGHT)) safe("뒷좌석 $s") {
             vehicle.getSeat().registerSeatOccupancy(SeatArea(s), object : SeatOccupancyListener {
                 override fun onSeatOccupancyUpdated(on: Boolean?) {
@@ -141,23 +162,27 @@ class VehicleWatcher(context: Context) {
                 override fun onFailed(e: Exception) = Log.w(TAG, "좌석 오류 $e").let {}
             })
         }
-        safe("와이퍼") {
-            vehicle.getWiper().registerWiperState(WindowArea(WindowValue.FRONT_WINDSHIELD), object : WiperStateListener {
-                override fun onWiperStateUpdated(s: WiperState?) {
-                    val on = s == WiperState.ON
-                    if (edges.changed("wiper", on) && on) emit(CarEvent.WIPER_ON)
-                }
-                override fun onFailed(e: Exception) = Log.w(TAG, "와이퍼 오류 $e").let {}
-            })
-        }
-        safe("에어컨") {
-            vehicle.getHVAC().registerHvacAcState(SeatArea(SeatValue.ROW_1_LEFT), object : HvacAcStateListener {
-                override fun onHvacAcStateUpdated(on: Boolean?) {
-                    if (on != null && edges.changed("ac", on)) emit(if (on) CarEvent.AC_ON else CarEvent.AC_OFF)
-                }
-                override fun onFailed(e: Exception) = Log.w(TAG, "에어컨 오류 $e").let {}
-            })
-        }
+    }
+
+    /** 와이퍼: 켜질 때만 알린다 */
+    private fun watchWiper() = safe("와이퍼") {
+        vehicle.getWiper().registerWiperState(WindowArea(WindowValue.FRONT_WINDSHIELD), object : WiperStateListener {
+            override fun onWiperStateUpdated(s: WiperState?) {
+                val on = s == WiperState.ON
+                if (edges.changed("wiper", on) && on) emit(CarEvent.WIPER_ON)
+            }
+            override fun onFailed(e: Exception) = Log.w(TAG, "와이퍼 오류 $e").let {}
+        })
+    }
+
+    /** 에어컨: 켜질 때와 꺼질 때를 따로 알린다 */
+    private fun watchAirConditioner() = safe("에어컨") {
+        vehicle.getHVAC().registerHvacAcState(SeatArea(SeatValue.ROW_1_LEFT), object : HvacAcStateListener {
+            override fun onHvacAcStateUpdated(on: Boolean?) {
+                if (on != null && edges.changed("ac", on)) emit(if (on) CarEvent.AC_ON else CarEvent.AC_OFF)
+            }
+            override fun onFailed(e: Exception) = Log.w(TAG, "에어컨 오류 $e").let {}
+        })
     }
 
     /** 기어 변화를 출발·주차·후진 이벤트로 바꾼다 */

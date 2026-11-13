@@ -33,10 +33,10 @@ class SoundEngine(private val context: Context) {
     /** 마지막으로 불러온 테마의 소리 구성. 내 테마는 같은 id라도 구성이 바뀌므로 내용으로 비교한다 */
     private var loadedKey: String? = null
 
-    /** 소리 id → 원본 경로. 재생 기록(로그)에 어떤 파일을 냈는지 남기는 용도 */
+    /** 소리 id별 원본 경로. 재생 기록(로그)에 어떤 파일을 냈는지 남기는 용도 */
     private val names = HashMap<Int, String>()
 
-    /** 소리 id → 길이(ms). 화면이 "재생 중" 표시를 소리 길이만큼만 유지하는 데 쓴다 */
+    /** 소리 id별 길이(ms). 화면이 "재생 중" 표시를 소리 길이만큼만 유지하는 데 쓴다 */
     private val lengths = HashMap<Int, Long>()
 
     /** 방금 재생한 소리의 길이(ms)와 스트림. 화면의 재생 중 표시·정지에 쓴다 */
@@ -50,7 +50,7 @@ class SoundEngine(private val context: Context) {
     /** 다 불러온 소리 id. 테마를 바꾼 직후에는 아직 로딩 중인 소리가 있다 */
     private val ready = HashSet<Int>()
 
-    /** 로딩이 끝나면 낼 소리(id → 좌우 음량). 테마 전환과 동시에 온 이벤트를 놓치지 않기 위함 */
+    /** 로딩이 끝나면 낼 소리(id별 좌우 음량). 테마 전환과 동시에 온 이벤트를 놓치지 않기 위함 */
     private val pending = HashMap<Int, Pair<Float, Float>>()
 
     /** 소리 파일 읽기는 메인 스레드를 막지 않도록 별도 스레드에서 한다(느린 차량 기기에서 화면 멈춤 방지) */
@@ -117,7 +117,6 @@ class SoundEngine(private val context: Context) {
     /** 방금 낸 소리를 멈춘다(듣기 버튼을 다시 눌렀을 때) */
     fun stop() { if (lastStream != 0) pool.stop(lastStream); lastStream = 0 }
 
-    /** 이 이벤트에 낼 소리가 있는지 */
     fun hasSound(e: CarEvent) = synchronized(lock) { !themeIds[e].isNullOrEmpty() }
 
     /** 이벤트 소리 재생. 재생했으면 true */
@@ -157,7 +156,6 @@ class SoundEngine(private val context: Context) {
         return ids[i]
     }
 
-    /** 앱이 끝날 때 소리 자원을 내려놓는다 */
     fun release() = pool.release()
 
     companion object {

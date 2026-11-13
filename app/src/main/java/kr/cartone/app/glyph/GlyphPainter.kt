@@ -20,7 +20,6 @@ object GlyphPainter {
         textAlign = Paint.Align.CENTER; typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
     }
 
-    /** size 크기의 정사각형 안에 그림을 그린다 */
     fun draw(c: Canvas, g: Glyph, size: Float, color: Int) {
         c.save()
         c.scale(size / 100f, size / 100f)

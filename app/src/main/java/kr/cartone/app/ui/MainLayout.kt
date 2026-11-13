@@ -16,7 +16,7 @@ import kr.cartone.app.theme.ThemeColors
 
 /**
  * 앱 화면의 뷰를 만들어 들고 있는 곳(배치만 담당).
- * 위에서부터: 머리말(앱 이름·기어 상태·전체 스위치) → 권한 안내 → 테마 카드 줄 → 뒷좌석 자동 전환 → 이벤트 14칸.
+ * 위에서부터: 머리말(앱 이름·기어 상태·전체 스위치), 권한 안내, 테마 카드 줄, 뒷좌석 자동 전환, 이벤트 14칸.
  * 그 위에 가운데 아이콘 판(CenterStage)과 녹음 창(RecordLayer)을 겹쳐 둔다.
  * 눌렀을 때 무슨 일을 할지는 MainActivity가 넘겨 준 콜백이 정한다.
  */
@@ -36,7 +36,6 @@ class MainLayout(
         val onCancelRecording: () -> Unit,
     )
 
-    /** 스크롤되는 본문 */
     val root = LinearLayout(context).apply {
         orientation = LinearLayout.VERTICAL
         val pad = dp(32)
@@ -55,10 +54,8 @@ class MainLayout(
     /** 이벤트 칸 14개(CarEvent 순서) */
     val tiles = mutableListOf<EventTileView>()
 
-    /** 화면 가운데에 이벤트 아이콘을 크게 띄우는 판 */
     val stage = CenterStage(context)
 
-    /** 녹음 중에 뜨는 큰 녹음 창 */
     val recLayer = RecordLayer(context, actions.onSaveRecording, actions.onCancelRecording)
 
     /** Activity에 그대로 붙일 최상위 뷰 */

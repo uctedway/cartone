@@ -63,7 +63,7 @@ def duration(raw):
 
 
 def align(log, ons, dur):
-    """기록 시각 → 녹화 시각 차이를 찾는다. 가장 많은 소리가 맞아떨어지는 차이를 고른다"""
+    """기록 시각과 녹화 시각의 차이를 찾는다. 가장 많은 소리가 맞아떨어지는 차이를 고른다"""
     best, best_n = None, -1
     for t, *_ in log:
         for o in ons:

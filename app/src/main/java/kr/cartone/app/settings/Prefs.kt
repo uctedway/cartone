@@ -11,7 +11,6 @@ class Prefs(context: Context) {
         get() = sp.getString("theme", null)
         set(v) = sp.edit().putString("theme", v).apply()
 
-    /** 전체 소리 켜기/끄기 */
     var enabled: Boolean
         get() = sp.getBoolean("enabled", true)
         set(v) = sp.edit().putBoolean("enabled", v).apply()
@@ -24,7 +23,6 @@ class Prefs(context: Context) {
     /** 이벤트별 켜고 끄기. 기본은 모두 켜짐이고, 끈 이벤트 키만 저장한다 */
     fun isOn(key: String) = key !in sp.getStringSet("off", emptySet()).orEmpty()
 
-    /** 이벤트 하나를 켜거나 끈다 */
     fun setOn(key: String, on: Boolean) {
         val off = sp.getStringSet("off", emptySet()).orEmpty().toMutableSet()
         if (on) off -= key else off += key

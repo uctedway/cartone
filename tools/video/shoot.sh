@@ -1,5 +1,5 @@
 #!/bin/zsh
-# 카톤 시연 촬영(이벤트 확인형): 동작 → 앱이 실제로 소리를 냈다는 로그(PLAY) 확인 → 다음.
+# 카톤 시연 촬영(이벤트 확인형): 동작을 보내고, 앱이 실제로 소리를 냈다는 로그(PLAY)를 확인한 뒤 다음으로 넘어간다.
 # 사용: shoot.sh A   (P단 화면·테마·녹음·켜고 끄기·녹음 취소·출발)
 #       shoot.sh B   (주행 중 이벤트)
 #       shoot.sh C   (주차·뒷좌석 자동 전환)
@@ -7,7 +7,8 @@
 set -u
 P=$1
 D=${0:a:h}
-A(){ adb -s emulator-5558 "$@"; }
+# 에뮬레이터 이름은 환경 변수로 바꿀 수 있다
+A(){ adb -s "${CARTONE_EMULATOR:-emulator-5558}" "$@"; }
 U=http://127.0.0.1:18088
 post(){ curl -s -m 5 -X POST "$U$1" >/dev/null; }
 tap(){ A shell input tap $1 $2; }
@@ -56,7 +57,7 @@ if [ $P = A ]; then
   act drum_window window_down "tap 2324 823"
   act drum_turn turn_right "tap 1526 823"
   tap 1098 346; sleep 1.5
-  # 녹음: 기본 테마(래틀박스)에서 출발 칸 녹음 → 가운데 녹음 창 → 3초 뒤 자동 저장 → 복사본 테마가 생김
+  # 녹음: 기본 테마(래틀박스)에서 출발 칸 녹음을 누르면 가운데 녹음 창이 뜨고, 3초 뒤 자동 저장되면서 복사본 테마가 생긴다
   t=$(( $(ms) - T0 )); tap 1635 623; sleep 7.5
   echo "rec $t $t $(( $(ms) - T0 ))" >> $SEG
   # 화면 밖: 에뮬레이터는 마이크 입력이 없어 녹음 파일을 예시 합성 음성으로 바꾸고 앱을 다시 띄운다
@@ -66,7 +67,7 @@ if [ $P = A ]; then
   A shell am force-stop --user 10 kr.cartone.app
   A shell am start --user 10 -n kr.cartone.app/.ui.MainActivity >/dev/null; sleep 5; front; sleep 3
   act listen_voice depart "tap 1526 623"
-  # 켜고 끄기: 와이퍼 칸만 끔(금지 표시) → 전체 스위치 끔(칸 스위치 잠김) → 전체 다시 켬. 와이퍼는 꺼 둔 채로 주행한다
+  # 켜고 끄기: 와이퍼 칸만 끄고(금지 표시), 전체 스위치를 껐다가(칸 스위치 잠김) 다시 켠다. 와이퍼는 꺼 둔 채로 주행한다
   t=$(( $(ms) - T0 )); tap 1430 1123; sleep 2.4; tap 2475 150; sleep 2.6; tap 2475 150; sleep 1.8
   echo "toggle $t $t $(( $(ms) - T0 ))" >> $SEG
   PRE=$(plays depart)   # 로그 확인(약 3초)을 미리 해 둔다: 최대 3초 녹음이 끝나기 전에 출발해야 '취소'를 보여줄 수 있다

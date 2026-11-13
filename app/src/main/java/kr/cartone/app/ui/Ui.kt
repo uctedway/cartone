@@ -11,7 +11,6 @@ import android.widget.TextView
 
 /** 화면 공용 도우미: dp 변환, 둥근 배경, 알약 버튼, 글자 스타일, 색 투명도 */
 object Ui {
-    /** dp를 화면 픽셀로 바꾼다 */
     fun dp(c: Context, v: Int) = (v * c.resources.displayMetrics.density).toInt()
 
     /** 모서리가 둥근 배경. strokeColor를 주면 테두리를 그린다 */
@@ -30,12 +29,10 @@ object Ui {
         setOnClickListener(onClick)
     }
 
-    /** 제목 글자(중간 굵기) */
     fun title(c: Context, text: String, color: Int, size: Float = 30f) = TextView(c).apply {
         this.text = text; textSize = size; typeface = MEDIUM; setTextColor(color)
     }
 
-    /** 본문 글자 */
     fun body(c: Context, text: String, color: Int, size: Float = 18f) = TextView(c).apply {
         this.text = text; textSize = size; setTextColor(color)
     }

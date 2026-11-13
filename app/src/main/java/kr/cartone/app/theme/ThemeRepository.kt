@@ -23,7 +23,7 @@ class ThemeRepository(private val context: Context) {
     private fun loadAll(): List<Theme> {
         val am = context.assets
         val ids = am.list(ROOT)?.sorted().orEmpty()
-        // 정해진 순서(래틀박스 → 드럼킷)를 먼저, 나머지는 이름순
+        // 정해진 순서(래틀박스, 드럼킷)를 먼저, 나머지는 이름순
         val ordered = ORDER.filter { it in ids } + ids.filter { it !in ORDER }
         return ordered.mapNotNull { id -> runCatching { load(id) }.onFailure { Log.w("CarTone", "테마 $id 읽기 실패 $it") }.getOrNull() }
     }

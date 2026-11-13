@@ -71,7 +71,6 @@ class RecordLayer(context: Context, private val onSave: () -> Unit, private val 
         bar?.progress = (p * 1000).toInt()
     }
 
-    /** 빠르게 페이드 아웃하고 숨긴다 */
     fun hide() {
         animate().cancel()
         animate().alpha(0f).setDuration(180).withEndAction { visibility = GONE }.start()

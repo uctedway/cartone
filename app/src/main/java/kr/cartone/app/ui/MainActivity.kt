@@ -33,8 +33,6 @@ class MainActivity : Activity() {
     private var playingEvent: CarEvent? = null
     private val endPlaying = Runnable { finishPlaying() }
 
-    // ---- 화면이 보이는 동안만 앱 부품에 연결하는 리스너들 ----
-
     /** 기어가 바뀌면 잠금 표시를 고치고, 녹음이 취소됐으면 녹음 창을 닫는다 */
     private val onGate: (Boolean, Boolean) -> Unit = { _, cancelled ->
         refreshLock()
@@ -62,8 +60,6 @@ class MainActivity : Activity() {
         if (ok) toast("${e.label}에 내 목소리를 걸었어요", long = true)
         refreshAll()
     }
-
-    // ---- 생명주기 ----
 
     /** 백그라운드 서비스를 켜고 화면을 만든다 */
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -105,8 +101,6 @@ class MainActivity : Activity() {
         super.onPause()
     }
 
-    // ---- 상태를 화면에 반영 ----
-
     /** 테마 색·녹음 상태·스위치·잠금을 화면 전체에 다시 반영한다 */
     private fun refreshAll() {
         val t = app.theme
@@ -144,8 +138,6 @@ class MainActivity : Activity() {
         ui.status.background = Ui.rounded(if (open) Ui.alpha(c.accent, 0.10f) else Ui.alpha(c.ink, 0.08f), Ui.dp(this, 12))
         ui.tiles.forEach { it.setLocked(!open) }
     }
-
-    // ---- 사용자가 누른 동작 ----
 
     /** 내 테마 삭제 확인(녹음도 함께 지워짐). P단에서만 된다 */
     private fun confirmDelete(t: Theme) {
@@ -216,8 +208,6 @@ class MainActivity : Activity() {
         if (code == REQ_MIC && results.firstOrNull() == PackageManager.PERMISSION_GRANTED) pendingRecord?.let { record(it) }
         pendingRecord = null
     }
-
-    // ---- 작은 도우미 ----
 
     /** 나고 있는 소리가 있으면 멈추고 재생 표시도 지운다 */
     private fun stopPlaying() {
